@@ -1,5 +1,6 @@
 from pathlib import Path
 import sys
+from datetime import datetime
 
 # Get the absolute path of the current file
 file_path = Path(__file__).resolve()
@@ -20,13 +21,18 @@ VIDEO = 'Video'
 WEBCAM = 'Webcam'
 RTSP = 'RTSP'
 YOUTUBE = 'YouTube'
+WEBCAMLIVE = 'Webcam-Live'
 
-SOURCES_LIST = [IMAGE, VIDEO, YOUTUBE]
+SOURCES_LIST = [IMAGE, VIDEO, WEBCAM, YOUTUBE, WEBCAMLIVE]
 
 # Images config
 IMAGES_DIR = ROOT / 'images'
-DEFAULT_IMAGE = IMAGES_DIR / 'Holi.jpg'
-DEFAULT_DETECT_IMAGE = IMAGES_DIR / 'Holi_detected.jpg'
+# Get the current month name
+month_name = datetime.now().strftime('%B')
+
+# Set the default image path based on the month name
+DEFAULT_IMAGE = IMAGES_DIR / f'{month_name}.jpg'
+DEFAULT_DETECT_IMAGE = IMAGES_DIR / f'{month_name}D.jpg'
 
 # Videos config
 VIDEO_DIR = ROOT / 'videos'

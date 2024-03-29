@@ -1,6 +1,10 @@
 # Python In-built packages
 from pathlib import Path
 import PIL
+import csv
+import datetime
+import pytz
+import time
 
 # External packages
 import streamlit as st
@@ -8,6 +12,10 @@ import streamlit as st
 # Local Modules
 import settings
 import helper
+
+
+
+
 
 logo = PIL.Image.open('images/pngwing.com (1).png')
 logo = logo.resize((500, 500))
@@ -50,6 +58,33 @@ if "themes" not in ms:
     }
 
 
+
+
+
+# Function to get holiday message for a given date
+def get_message_of_the_day(date):
+    with open('assets/holiday-data.csv', mode='r') as file:
+        reader = csv.reader(file)
+        next(reader)  # Skip header row
+        for row in reader:
+            holiday_date = datetime.datetime.strptime(row[0], '%d %B %Y').date()
+            if holiday_date == date:
+                month_name = date.strftime('%B')  # Get the month name from the date
+                return row[1], row[2], month_name  # Return the holiday message, significance, and month name
+    return None, None, None  # Return None if no holiday message found for the date
+
+# Function to get the current time with time zone for Kolkata
+def get_current_time_kolkata():
+    # Get the current time in UTC
+    current_time_utc = datetime.datetime.now(pytz.utc)
+    # Convert the current time to Kolkata time zone
+    kolkata_time = current_time_utc.astimezone(pytz.timezone('Asia/Kolkata'))
+    return kolkata_time.strftime('%H:%M:%S %Z')
+
+
+
+
+
 def change_theme():
     ms.sidebar_selection = True  # Initialize sidebar_selection when anything is selected in the sidebar
     previous_theme = ms.themes["current_theme"]
@@ -75,6 +110,10 @@ st.button(btn_face, on_click=change_theme)
 # Check if theme needs to be refreshed
 if not ms.themes["refreshed"]:
     ms.themes["refreshed"] = True
+
+
+
+
 
 # Initialize session state attribute for sidebar selection
 if "sidebar_selection" not in ms:
@@ -107,19 +146,24 @@ except Exception as ex:
     st.error(f"Unable to load model. Check the specified path: {model_path}")
     st.error(ex)
 
+
+
+
+
 st.sidebar.header("Image/Video Config")
 source_radio = st.sidebar.radio(
     "Select Source", settings.SOURCES_LIST)
 
-if source_radio == settings.IMAGE:
-    st.markdown("""Wishing you a vibrant and colorful Holi filled with joy, laughter, and endless moments of happiness!😊 
-    \nMay this festival of colors paint your life with love, prosperity, and positivity.💗 
-    \nLet's spread the cheer and celebrate the spirit of togetherness. 
-    Happy Holi!🔫""")
 # If image is selected
 if source_radio == settings.IMAGE:
     source_img = st.sidebar.file_uploader(
         "Choose an image...", type=("jpg", "jpeg", "png", 'bmp', 'webp'))
+
+    # Display date, holiday, significance, and holiday message if it's a holiday
+    today_date = datetime.date.today()
+    holiday_message, significance, month_name = get_message_of_the_day(today_date)
+    # Display the month name in the subheader
+    st.markdown(f"<h1 style='text-align: center; font-size: 35px; font-family: Lato, sans-serif;'>{month_name} Highlight</h1>", unsafe_allow_html=True)
 
     col1, col2 = st.columns(2)
 
@@ -174,5 +218,38 @@ elif source_radio == settings.RTSP:
 elif source_radio == settings.YOUTUBE:
     helper.play_youtube_video(confidence, model)
 
+elif source_radio == settings.WEBCAMLIVE:
+    helper.display_webcam()
+
 else:
     st.error("Please select a valid source type!")
+
+
+
+
+
+if source_radio == settings.IMAGE:
+    # Create Streamlit columns for displaying holiday info and current time
+    col1, col2 = st.columns(2)
+
+    with col1:
+        if holiday_message:
+            st.write(f"<span style='font-family: Arial; font-size: 16px; font-style: sans-serif;'>Date: {today_date}</span>", unsafe_allow_html=True)
+            st.write(f"<span style='font-family: Arial; font-size: 16px; font-style: sans-serif;'>Holiday: {holiday_message}</span>", unsafe_allow_html=True)
+            st.write(f"<span style='font-family: Arial; font-size: 16px; font-style: sans-serif;'>Significance: {significance}</span>", unsafe_allow_html=True)
+
+    with col2:
+        if holiday_message:
+            # Display the current time with time zone for Kolkata in the Streamlit app
+            st.write("<span style='font-family: Arial; font-size: 16px; font-style: sans-serif;'>Current Time (Kolkata Time Zone):</span>", unsafe_allow_html=True)
+            # Placeholder for displaying the current time
+            time_placeholder = st.empty()
+
+            # Update the displayed time continuously
+            while True:
+                # Get the current time in Kolkata time zone
+                current_time_kolkata = get_current_time_kolkata()
+                # Update the displayed time
+                time_placeholder.write(f"<span style='font-family: Arial; font-size: 16px; font-style: sans-serif;'>{current_time_kolkata}</span>", unsafe_allow_html=True)
+                # Wait for a short duration before updating again
+                time.sleep(1)

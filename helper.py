@@ -151,18 +151,18 @@ def play_rtsp_stream(conf, model):
 
 def single_display_detected_frames(conf, model, image, is_display_tracking=None, tracker=None):
     """
-  Processes and displays a single image with object detection results.
+    Processes and displays a single image with object detection results.
 
-  Args:
-      conf: Confidence threshold for detection.
-      model: Loaded object detection model.
-      image: The image to be processed (OpenCV format).
-      is_display_tracking (optional): Flag indicating if tracker should be displayed.
-      tracker (optional): Tracker object if tracking is enabled.
-  """
+    Args:
+        conf: Confidence threshold for detection.
+        model: Loaded object detection model.
+        image: The image to be processed (OpenCV format).
+        is_display_tracking (optional): Flag indicating if tracker should be displayed.
+        tracker (optional): Tracker object if tracking is enabled.
 
-    image = cv2.resize(image, (720, int(720 * (9 / 16))))  # Resize for display
-
+    Returns:
+        Processed image with detections.
+    """
     if is_display_tracking:
         res = model.track(image, conf=conf, persist=True, tracker=tracker)
     else:
@@ -171,34 +171,63 @@ def single_display_detected_frames(conf, model, image, is_display_tracking=None,
     res_plotted = res[0].plot()
     return res_plotted  # Return the processed image with detections
 
-
-def play_webcam(conf, model):
+def play_webcam(confidence, model):
     """
-    Plays a webcam stream. Detects Objects in real-time using the YOLOv8 object detection model.
+    Plays a webcam stream and performs object detection in real-time using the YOLOv8 object detection model.
 
     Parameters:
-        conf: Confidence of YOLOv8 model.
+        confidence: Confidence threshold for object detection.
         model: An instance of the `YOLOv8` class containing the YOLOv8 model.
 
     Returns:
         None
-
-    Raises:
-        None
     """
 
-    st_frame = st.empty()  # Create an empty container for displaying frames
-    col1, col2, col3 = st.columns([1, 2, 1])
+    # OpenCV capture object for webcam
+    cap = cv2.VideoCapture(0)
 
+    # Check if webcam opened successfully
+    if not cap.isOpened():
+        st.error("Failed to open webcam.")
+        return
 
+    # Create Streamlit columns for displaying webcam feed and object detection
+    col1, col2 = st.columns(2)
+    col1.title("Live Webcam Feed")
+    col2.title("Object Detection")
+
+    # Placeholder for displaying the live webcam feed
+    st_frame = col1.empty()
+
+    # Placeholder for displaying the detected objects
+    st_objects = col2.empty()
+
+    # Loop to capture frames from the webcam
     while True:
-        camera_frame = col2.camera_input("Take a photo")  # Capture frame from webcam (unique key)
-        col2.success("Photo uploaded successfully!")
-        if camera_frame is not None:
-            image = cv2.cvtColor(np.array(camera_frame), cv2.COLOR_RGB2BGR)
-            processed_frame = single_display_detected_frames(conf, model, image, False)
-            st_frame.image(processed_frame, channels="BGR", use_column_width=True)
+        ret, frame = cap.read()
 
+        # Check if frame is valid
+        if not ret:
+            st.error("Failed to capture frame from webcam.")
+            break
+
+        # Mirror the frame horizontally
+        mirrored_frame = cv2.flip(frame, 0)
+
+        # Display the mirrored frame in the Streamlit app
+        st_frame.image(mirrored_frame, channels="BGR")
+
+        # Detect objects in the frame
+        processed_frame = single_display_detected_frames(confidence, model, frame)
+
+        # Display the processed frame with detections
+        st_objects.image(processed_frame, channels="BGR", use_column_width=True)
+
+        # Add a small delay to reduce CPU usage
+        st.experimental_rerun()
+
+    # Release the webcam
+    cap.release()
 
 def play_stored_video(conf, model):
     """
@@ -244,3 +273,52 @@ def play_stored_video(conf, model):
                     break
         except Exception as e:
             st.sidebar.error("Error loading video: " + str(e))
+
+def display_webcam():
+    """
+    Displays real-time video stream from the webcam with an option to toggle between normal and mirrored mode.
+    """
+    # OpenCV capture object for webcam
+    cap = cv2.VideoCapture(0)
+
+    # Check if webcam opened successfully
+    if not cap.isOpened():
+        st.error("Failed to open webcam.")
+        return
+
+    # Set the title for the Streamlit app
+    st.title("Webcam Stream")
+
+    # Checkbox to toggle between normal and mirrored mode
+    mirror_mode = st.checkbox("Mirror Mode", value=False)
+
+    frame_placeholder = st.empty()
+
+    # Add a "Stop" button and store its state in a variable
+    stop_button_pressed = st.button("Stop")
+
+    # Loop to capture frames from the webcam
+    while cap.isOpened() and not stop_button_pressed:
+        ret, frame = cap.read()
+
+        # Check if frame is valid
+        if not ret:
+            st.write("The video capture has ended.")
+            break
+
+        # Convert the frame from BGR to RGB format
+        frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+
+        # Check if mirror mode is enabled
+        if mirror_mode:
+            # Flip the frame horizontally (mirror mode)
+            frame_rgb = cv2.flip(frame_rgb, 1)
+
+        # Display the frame in the Streamlit app
+        frame_placeholder.image(frame_rgb, channels="RGB", use_column_width=True)
+
+        # Wait for a short duration to display the next frame
+        time.sleep(0.01)
+
+    # Release the webcam and close Streamlit app
+    cap.release()
